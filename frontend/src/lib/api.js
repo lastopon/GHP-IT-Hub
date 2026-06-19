@@ -78,3 +78,72 @@ export async function fetchMe() {
 export function logout() {
   tokenStore.clear();
 }
+
+// ---- User management (admin) ----
+export async function listUsers(params = {}) {
+  const { data } = await api.get("/auth/users/", { params });
+  return data; // { count, next, previous, results }
+}
+
+export async function createUser(payload) {
+  const { data } = await api.post("/auth/users/", payload);
+  return data;
+}
+
+export async function updateUser(id, payload) {
+  const { data } = await api.patch(`/auth/users/${id}/`, payload);
+  return data;
+}
+
+export async function listDepartments() {
+  const { data } = await api.get("/auth/departments/");
+  return data;
+}
+
+// ---- Helpdesk (module 2) ----
+export async function listTickets(params = {}) {
+  const { data } = await api.get("/helpdesk/tickets/", { params });
+  return data; // { count, next, previous, results }
+}
+
+export async function getTicket(id) {
+  const { data } = await api.get(`/helpdesk/tickets/${id}/`);
+  return data;
+}
+
+export async function createTicket(payload) {
+  const { data } = await api.post("/helpdesk/tickets/", payload);
+  return data;
+}
+
+export async function rateTicket(id, payload) {
+  // General users may only PATCH satisfaction fields on their own ticket.
+  const { data } = await api.patch(`/helpdesk/tickets/${id}/`, payload);
+  return data;
+}
+
+export async function assignTicket(id, assignee) {
+  const { data } = await api.post(`/helpdesk/tickets/${id}/assign/`, { assignee });
+  return data;
+}
+
+export async function resolveTicket(id) {
+  const { data } = await api.post(`/helpdesk/tickets/${id}/resolve/`);
+  return data;
+}
+
+export async function listTicketCategories() {
+  const { data } = await api.get("/helpdesk/categories/");
+  return data;
+}
+
+export async function listAssignees() {
+  // Staff-scoped list of assignable users (avoids the admin-only users endpoint).
+  const { data } = await api.get("/helpdesk/tickets/assignees/");
+  return data; // array of {id, email, role, ...}
+}
+
+export async function addTicketComment(payload) {
+  const { data } = await api.post("/helpdesk/comments/", payload);
+  return data;
+}

@@ -12,9 +12,10 @@
 | Django config (settings แยก base/dev/prod/test, urls, wsgi, asgi, celery) | ✅ |
 | Core app (BaseModel UUID + soft-delete, ActiveManager, pagination, `wait_for_db`) | ✅ |
 | **โมดูล 1 — User Management & Auth** (CustomUser, RBAC, Department, AuditLog, JWT) | ✅ |
+| **โมดูล 2 — Helpdesk & Ticketing** (Ticket + SLA, Category, Comment, Attachment, Knowledge Base) | ✅ |
 | LDAP / Active Directory (เปิดด้วย `LDAP_ENABLED=True`) | 🟡 เตรียมไว้ |
 | Frontend (React + Vite + Tailwind) — Login + Dashboard | ✅ |
-| โมดูล 2–8 | ⬜ ยังไม่เริ่ม (มี placeholder บน Dashboard) |
+| โมดูล 3–8 | ⬜ ยังไม่เริ่ม (มี placeholder บน Dashboard) |
 
 ## Stack
 
@@ -94,13 +95,27 @@ npm run dev          # http://localhost:5173 (proxy /api -> :8000)
 | GET/POST | `/api/v1/auth/users/` | Admin เท่านั้น |
 | GET | `/api/v1/auth/departments/` | ผู้ใช้ที่ล็อกอิน (อ่าน), Admin (เขียน) |
 
+## API หลัก (โมดูล 2 — Helpdesk)
+
+| Method | Path | สิทธิ์ |
+| :--- | :--- | :--- |
+| GET/POST | `/api/v1/helpdesk/tickets/` | ผู้ใช้สร้าง/ดูเคสของตนเอง · IT Staff เห็นทุกเคส |
+| PATCH | `/api/v1/helpdesk/tickets/{id}/` | IT Staff แก้ได้ทุกฟิลด์ · ผู้ใช้แก้ได้เฉพาะคะแนนความพึงพอใจ |
+| POST | `/api/v1/helpdesk/tickets/{id}/assign/` | IT Staff — จ่ายงานให้ผู้รับผิดชอบ |
+| POST | `/api/v1/helpdesk/tickets/{id}/resolve/` | IT Staff — ปิดเคสเป็น resolved |
+| GET/POST | `/api/v1/helpdesk/comments/` | ผู้ใช้คอมเมนต์เคสตนเอง · internal note เฉพาะ IT Staff |
+| GET | `/api/v1/helpdesk/categories/` | ผู้ใช้ที่ล็อกอิน (อ่าน), Admin (เขียน) |
+| GET | `/api/v1/helpdesk/kb/` | ผู้ใช้เห็นบทความที่เผยแพร่ · IT Staff จัดการได้ |
+
+Ticket จะได้เลขอ้างอิงอัตโนมัติ (`TKT-000001`) และคำนวณ `sla_due_at` จาก `default_sla_hours` ของหมวดหมู่
+
 ## ทดสอบ
 
 ```bash
 docker compose exec backend python manage.py test --settings=config.settings.test
 ```
 
-ชุดทดสอบครอบคลุม: JWT login, การ audit เมื่อ login สำเร็จ/ล้มเหลว, RBAC (Admin vs General User), `/me`, และความ immutable ของ AuditLog
+ชุดทดสอบครอบคลุม: JWT login, การ audit เมื่อ login สำเร็จ/ล้มเหลว, RBAC (Admin vs General User), `/me`, ความ immutable ของ AuditLog และ flow ของ Helpdesk (สร้าง ticket + ออกเลขอ้างอิง/SLA, RBAC การมองเห็นเคส, การ assign/resolve)
 
 ## เปิดใช้ LDAP / Active Directory (ภายหลัง)
 
@@ -117,4 +132,4 @@ LDAP_USER_SEARCH_BASE=...
 
 ## โรดแมปถัดไป (จาก cloude.md)
 
-โมดูล 2 Helpdesk · 3 Asset · 4 Inventory · 5 Daily Report · 6 Project (Kanban) · 7 IPAM · 8 Monitoring integration
+โมดูล 3 Asset · 4 Inventory · 5 Daily Report · 6 Project (Kanban) · 7 IPAM · 8 Monitoring integration

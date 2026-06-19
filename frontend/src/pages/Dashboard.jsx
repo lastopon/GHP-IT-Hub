@@ -1,11 +1,12 @@
+import { Link } from "react-router-dom";
 import { useAuth } from "../lib/auth.jsx";
 
 // The 8 modules from cloude.md §2. `roles` controls who sees each card.
-// Only module 1 (this auth app) is implemented in Phase 1; the rest are
+// `ready` cards link to their implemented page (`to`); the rest are
 // placeholders so the roadmap is visible in the UI.
 const MODULES = [
-  { id: 1, name: "User Management", desc: "จัดการผู้ใช้ + สิทธิ์ RBAC", roles: ["admin"], ready: true },
-  { id: 2, name: "Helpdesk & Ticketing", desc: "แจ้งซ่อม / SLA / Knowledge Base", roles: ["admin", "staff", "user"] },
+  { id: 1, name: "User Management", desc: "จัดการผู้ใช้ + สิทธิ์ RBAC", roles: ["admin"], ready: true, to: "/users" },
+  { id: 2, name: "Helpdesk & Ticketing", desc: "แจ้งซ่อม / SLA / Knowledge Base", roles: ["admin", "staff", "user"], ready: true, to: "/helpdesk" },
   { id: 3, name: "IT Asset Management", desc: "วงจรชีวิตสินทรัพย์ + QR Code", roles: ["admin", "staff"] },
   { id: 4, name: "Inventory", desc: "คลังอะไหล่ + แจ้งเตือนสต็อกต่ำ", roles: ["admin", "staff"] },
   { id: 5, name: "Daily Report & Checklist", desc: "ตรวจเช็กประจำวัน + รายงานอัตโนมัติ", roles: ["admin", "staff"] },
@@ -54,29 +55,44 @@ export default function Dashboard() {
           โมดูลที่ใช้งานได้ ({visible.length})
         </h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {visible.map((m) => (
-            <div
-              key={m.id}
-              className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100 transition hover:shadow-md"
-            >
-              <div className="mb-2 flex items-center justify-between">
-                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-50 text-sm font-bold text-brand-600">
-                  {m.id}
-                </span>
-                {m.ready ? (
-                  <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
-                    พร้อมใช้
+          {visible.map((m) => {
+            const clickable = m.ready && m.to;
+            const body = (
+              <>
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-50 text-sm font-bold text-brand-600">
+                    {m.id}
                   </span>
-                ) : (
-                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-400">
-                    เร็วๆ นี้
-                  </span>
-                )}
+                  {m.ready ? (
+                    <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
+                      พร้อมใช้
+                    </span>
+                  ) : (
+                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-400">
+                      เร็วๆ นี้
+                    </span>
+                  )}
+                </div>
+                <h3 className="font-semibold text-slate-800">{m.name}</h3>
+                <p className="mt-1 text-sm text-slate-500">{m.desc}</p>
+              </>
+            );
+            const base =
+              "rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100 transition";
+            return clickable ? (
+              <Link
+                key={m.id}
+                to={m.to}
+                className={`${base} block hover:shadow-md hover:ring-brand-200`}
+              >
+                {body}
+              </Link>
+            ) : (
+              <div key={m.id} className={`${base} hover:shadow-md`}>
+                {body}
               </div>
-              <h3 className="font-semibold text-slate-800">{m.name}</h3>
-              <p className="mt-1 text-sm text-slate-500">{m.desc}</p>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </main>
     </div>
