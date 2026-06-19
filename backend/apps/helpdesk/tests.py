@@ -57,6 +57,18 @@ class TicketFlowTests(APITestCase):
         r2 = self._create_ticket(self.user)
         self.assertNotEqual(r1.data["reference"], r2.data["reference"])
 
+    def test_reference_uses_numeric_max_not_lexicographic(self):
+        # TKT-1000000 must rank above TKT-999999; a string sort would not.
+        Ticket.objects.create(
+            reference="TKT-1000000",
+            title="big",
+            description="d",
+            category=self.category,
+            requester=self.user,
+        )
+        res = self._create_ticket(self.user)
+        self.assertEqual(res.data["reference"], "TKT-1000001")
+
     def test_general_user_sees_only_own_tickets(self):
         self._create_ticket(self.user)
         self.client.force_authenticate(self.other)
@@ -76,12 +88,46 @@ class TicketFlowTests(APITestCase):
         patch = self.client.patch(url, {"status": Ticket.Status.CLOSED})
         self.assertEqual(patch.status_code, status.HTTP_403_FORBIDDEN)
 
-    def test_requester_can_rate_satisfaction(self):
+    def _resolve(self, ticket_id):
+        self.client.force_authenticate(self.staff)
+        self.client.post(reverse("ticket-resolve", args=[ticket_id]))
+
+    def test_requester_can_rate_resolved_ticket(self):
         res = self._create_ticket(self.user)
+        self._resolve(res.data["id"])
         url = reverse("ticket-detail", args=[res.data["id"]])
         self.client.force_authenticate(self.user)
         patch = self.client.patch(url, {"satisfaction_rating": 5})
         self.assertEqual(patch.status_code, status.HTTP_200_OK)
+
+    def test_requester_cannot_rate_unresolved_ticket(self):
+        res = self._create_ticket(self.user)  # status=new
+        url = reverse("ticket-detail", args=[res.data["id"]])
+        self.client.force_authenticate(self.user)
+        patch = self.client.patch(url, {"satisfaction_rating": 5})
+        self.assertEqual(patch.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_rating_must_be_within_1_to_5(self):
+        res = self._create_ticket(self.user)
+        self._resolve(res.data["id"])
+        url = reverse("ticket-detail", args=[res.data["id"]])
+        self.client.force_authenticate(self.user)
+        patch = self.client.patch(url, {"satisfaction_rating": 99})
+        self.assertEqual(patch.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_requester_cannot_delete_ticket(self):
+        res = self._create_ticket(self.user)
+        url = reverse("ticket-detail", args=[res.data["id"]])
+        self.client.force_authenticate(self.user)
+        delete = self.client.delete(url)
+        self.assertEqual(delete.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_staff_can_delete_ticket(self):
+        res = self._create_ticket(self.user)
+        url = reverse("ticket-detail", args=[res.data["id"]])
+        self.client.force_authenticate(self.staff)
+        delete = self.client.delete(url)
+        self.assertEqual(delete.status_code, status.HTTP_204_NO_CONTENT)
 
     def test_staff_can_assign_and_resolve(self):
         res = self._create_ticket(self.user)
@@ -106,6 +152,33 @@ class TicketFlowTests(APITestCase):
             {"assignee": str(self.user.id)},
         )
         self.assertEqual(assign.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_assign_rejects_general_user_as_assignee(self):
+        res = self._create_ticket(self.user)
+        self.client.force_authenticate(self.staff)
+        assign = self.client.post(
+            reverse("ticket-assign", args=[res.data["id"]]),
+            {"assignee": str(self.user.id)},  # role=user, not assignable
+        )
+        self.assertEqual(assign.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_assign_rejects_unknown_assignee(self):
+        res = self._create_ticket(self.user)
+        self.client.force_authenticate(self.staff)
+        assign = self.client.post(
+            reverse("ticket-assign", args=[res.data["id"]]),
+            {"assignee": "00000000-0000-0000-0000-000000000000"},
+        )
+        self.assertEqual(assign.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_assign_rejects_malformed_assignee_id(self):
+        res = self._create_ticket(self.user)
+        self.client.force_authenticate(self.staff)
+        assign = self.client.post(
+            reverse("ticket-assign", args=[res.data["id"]]),
+            {"assignee": "not-a-uuid"},
+        )
+        self.assertEqual(assign.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_staff_can_list_assignees(self):
         self.client.force_authenticate(self.staff)

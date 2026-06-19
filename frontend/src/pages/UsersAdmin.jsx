@@ -44,16 +44,23 @@ export default function UsersAdmin() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [truncated, setTruncated] = useState(0);
 
-  // Only admins can manage users (backend enforces it too — this avoids a 403).
-  if (user.role !== "admin") return <Navigate to="/" replace />;
+  const isAdmin = user.role === "admin";
 
   async function load() {
     setLoading(true);
     setError("");
     try {
-      const [u, d] = await Promise.all([listUsers(), listDepartments()]);
-      setUsers(u.results ?? u);
+      // Backend caps page_size at 100; request the max so the table isn't
+      // silently truncated at the default 20.
+      const [u, d] = await Promise.all([
+        listUsers({ page_size: 100 }),
+        listDepartments(),
+      ]);
+      const rows = u.results ?? u;
+      setUsers(rows);
+      setTruncated(u.count ? Math.max(0, u.count - rows.length) : 0);
       setDepartments(d.results ?? d);
     } catch {
       setError("โหลดรายชื่อผู้ใช้ไม่สำเร็จ");
@@ -62,9 +69,15 @@ export default function UsersAdmin() {
     }
   }
 
+  // Keep hook order stable: always register the effect, but skip the fetch
+  // for non-admins (who are redirected below).
   useEffect(() => {
-    load();
-  }, []);
+    if (isAdmin) load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAdmin]);
+
+  // Only admins can manage users (backend enforces it too — this avoids a 403).
+  if (!isAdmin) return <Navigate to="/" replace />;
 
   function openCreate() {
     setEditing({});
@@ -209,6 +222,12 @@ export default function UsersAdmin() {
               </tbody>
             </table>
           </div>
+        )}
+
+        {truncated > 0 && (
+          <p className="mt-3 text-center text-xs text-slate-400">
+            แสดง {users.length} รายชื่อแรก · มีอีก {truncated} รายชื่อที่ยังไม่แสดง
+          </p>
         )}
       </main>
 

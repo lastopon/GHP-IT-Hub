@@ -1,5 +1,6 @@
 """Helpdesk API views (cloude.md module 2)."""
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db.models import Q
 from django.utils import timezone
 from rest_framework import viewsets
@@ -10,8 +11,6 @@ from rest_framework.response import Response
 
 from apps.authentication.models import AuditLog
 from apps.authentication.permissions import IsITStaff, ReadOnlyOrAdmin
-
-User = get_user_model()
 
 from .models import (
     KnowledgeBaseArticle,
@@ -27,6 +26,8 @@ from .serializers import (
     TicketCreateSerializer,
     TicketSerializer,
 )
+
+User = get_user_model()
 
 
 def _client_ip(request):
@@ -79,7 +80,7 @@ class TicketViewSet(viewsets.ModelViewSet):
         )
 
     def update(self, request, *args, **kwargs):
-        # General users may only patch satisfaction fields on their own ticket.
+        # General users may only rate their own ticket, and only after closure.
         if not request.user.is_it_staff:
             allowed = {"satisfaction_rating", "satisfaction_comment"}
             extra = set(request.data) - allowed
@@ -87,16 +88,42 @@ class TicketViewSet(viewsets.ModelViewSet):
                 raise PermissionDenied(
                     "You may only set satisfaction_rating / satisfaction_comment."
                 )
+            ticket = self.get_object()
+            if ticket.status not in Ticket.CLOSED_STATUSES:
+                raise ValidationError(
+                    {"detail": "You can only rate a resolved or closed ticket."}
+                )
         return super().update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        # Only IT staff/admin may delete tickets; requesters cannot.
+        if not request.user.is_it_staff:
+            raise PermissionDenied("Only IT staff can delete tickets.")
+        return super().destroy(request, *args, **kwargs)
 
     @action(detail=True, methods=["post"], permission_classes=[IsAuthenticated, IsITStaff])
     def assign(self, request, pk=None):
-        """Assign (or reassign) a ticket to a staff member."""
+        """Assign (or reassign) a ticket to a staff/admin member."""
         ticket = self.get_object()
         assignee_id = request.data.get("assignee")
         if not assignee_id:
             raise ValidationError({"assignee": "This field is required."})
-        ticket.assignee_id = assignee_id
+        # Only active staff/admin can own a ticket; reject unknown ids and
+        # general users instead of letting the FK fail with a 500.
+        try:
+            assignee = User.objects.filter(
+                Q(role=User.Role.STAFF) | Q(role=User.Role.ADMIN),
+                pk=assignee_id,
+                is_active=True,
+            ).first()
+        except (DjangoValidationError, ValueError, TypeError):
+            # Malformed UUID etc.
+            assignee = None
+        if assignee is None:
+            raise ValidationError(
+                {"assignee": "Must be an active IT staff or admin user."}
+            )
+        ticket.assignee = assignee
         if ticket.status == Ticket.Status.NEW:
             ticket.status = Ticket.Status.ASSIGNED
         ticket.save(update_fields=["assignee", "status", "updated_at"])

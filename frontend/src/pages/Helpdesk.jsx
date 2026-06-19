@@ -32,6 +32,10 @@ const PRIORITY_BADGE = {
 
 const PRIORITIES = ["low", "medium", "high", "urgent"];
 
+// Backend caps page_size at 100; request the max so the list isn't silently
+// truncated at the default 20. Narrow with the status/priority filters.
+const PAGE_SIZE = 100;
+
 export default function Helpdesk() {
   const { user } = useAuth();
   const isStaff = user.role === "admin" || user.role === "staff";
@@ -44,16 +48,20 @@ export default function Helpdesk() {
 
   const [creating, setCreating] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
+  const [truncated, setTruncated] = useState(0); // total rows beyond what's shown
 
   async function load() {
     setLoading(true);
     setError("");
     try {
-      const params = {};
+      const params = { page_size: PAGE_SIZE };
       if (filters.status) params.status = filters.status;
       if (filters.priority) params.priority = filters.priority;
       const data = await listTickets(params);
-      setTickets(data.results ?? data);
+      const rows = data.results ?? data;
+      setTickets(rows);
+      // Surface (rather than silently drop) anything past the first page.
+      setTruncated(data.count ? Math.max(0, data.count - rows.length) : 0);
     } catch {
       setError("โหลดรายการเคสไม่สำเร็จ");
     } finally {
@@ -187,6 +195,13 @@ export default function Helpdesk() {
               </tbody>
             </table>
           </div>
+        )}
+
+        {truncated > 0 && (
+          <p className="mt-3 text-center text-xs text-slate-400">
+            แสดง {tickets.length} เคสแรก · มีอีก {truncated} เคสที่ยังไม่แสดง —
+            ใช้ตัวกรองด้านบนเพื่อค้นหา
+          </p>
         )}
       </main>
 

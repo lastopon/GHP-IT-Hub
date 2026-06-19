@@ -6,7 +6,9 @@ service after the ticket is closed. Frequently used fixes are stored as
 Knowledge Base articles.
 """
 from django.conf import settings
-from django.db import models
+from django.core.validators import MaxValueValidator, MinValueValidator
+from django.db import IntegrityError, models, transaction
+from django.db.models.functions import Cast, Substr
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
@@ -91,7 +93,11 @@ class Ticket(BaseModel):
     closed_at = models.DateTimeField(null=True, blank=True)
 
     # 1–5 satisfaction rating, set by the requester after closure.
-    satisfaction_rating = models.PositiveSmallIntegerField(null=True, blank=True)
+    satisfaction_rating = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(1), MaxValueValidator(5)],
+    )
     satisfaction_comment = models.TextField(blank=True)
 
     class Meta:
@@ -115,25 +121,47 @@ class Ticket(BaseModel):
 
     def save(self, *args, **kwargs):
         creating = self._state.adding
-        if creating:
-            if not self.reference:
-                self.reference = self._next_reference()
-            if self.sla_due_at is None and self.category_id:
-                hours = self.category.default_sla_hours
-                if hours:
-                    self.sla_due_at = timezone.now() + timezone.timedelta(hours=hours)
-        super().save(*args, **kwargs)
+        if not creating:
+            return super().save(*args, **kwargs)
+
+        if self.sla_due_at is None and self.category_id:
+            hours = self.category.default_sla_hours
+            if hours:
+                self.sla_due_at = timezone.now() + timezone.timedelta(hours=hours)
+
+        if self.reference:
+            return super().save(*args, **kwargs)
+
+        # reference is unique; two concurrent creates can compute the same next
+        # value, so retry on the resulting collision instead of 500-ing.
+        for attempt in range(self._REFERENCE_MAX_RETRIES):
+            self.reference = self._next_reference()
+            try:
+                with transaction.atomic():
+                    return super().save(*args, **kwargs)
+            except IntegrityError:
+                if attempt == self._REFERENCE_MAX_RETRIES - 1:
+                    raise
+                self._state.adding = True  # allow another insert attempt
+
+    _REFERENCE_MAX_RETRIES = 5
 
     @staticmethod
     def _next_reference() -> str:
-        last = (
-            Ticket.all_objects.exclude(reference="")
-            .order_by("-reference")
-            .values_list("reference", flat=True)
-            .first()
+        # Parse the numeric suffix rather than ordering on the string, which
+        # would put TKT-1000000 below TKT-999999.
+        seq = (
+            Ticket.all_objects.exclude(reference="").aggregate(
+                m=models.Max(
+                    Cast(
+                        Substr("reference", 5),  # drop the "TKT-" prefix
+                        output_field=models.IntegerField(),
+                    )
+                )
+            )["m"]
+            or 0
         )
-        seq = int(last.split("-")[1]) + 1 if last else 1
-        return f"TKT-{seq:06d}"
+        return f"TKT-{seq + 1:06d}"
 
 
 class TicketComment(BaseModel):
