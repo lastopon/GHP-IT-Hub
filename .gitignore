@@ -1,0 +1,50 @@
+# ---- Python / Django ----
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+*.egg-info/
+.installed.cfg
+*.egg
+db.sqlite3
+db.sqlite3-journal
+/backend/staticfiles/
+/backend/media/
+/backend/static_collected/
+
+# ---- Environment ----
+.env
+.env.*
+!.env.example
+
+# ---- Node / Frontend ----
+node_modules/
+/frontend/dist/
+/frontend/build/
+.npm
+.eslintcache
+*.local
+
+# ---- IDE / OS ----
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ---- Logs / coverage ----
+*.log
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+.pytest_cache/
+.mypy_cache/
+
+# ---- Docker volumes (local) ----
+/data/
