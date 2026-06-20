@@ -346,7 +346,7 @@ function ItemDetail({ id, isStaff, onClose, onEdit, onChanged }) {
     kind: "receive",
     quantity: "",
     counterparty: "",
-    direction: "down", // only used for adjust: "down" = reduce stock
+    direction: "up", // only used for adjust; default to raising stock
   });
 
   async function refresh() {
@@ -381,7 +381,7 @@ function ItemDetail({ id, isStaff, onClose, onEdit, onChanged }) {
         quantity,
         counterparty: move.counterparty,
       });
-      setMove({ kind: "receive", quantity: "", counterparty: "", direction: "down" });
+      setMove({ kind: "receive", quantity: "", counterparty: "", direction: "up" });
       await refresh();
       onChanged();
     } catch (err) {
