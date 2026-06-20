@@ -122,6 +122,18 @@ class CardViewSet(viewsets.ModelViewSet):
             target_column = source_column
 
         with transaction.atomic():
+            # Lock the affected lane(s) so concurrent moves can't read the same
+            # snapshot and write colliding order values. Lock columns in a
+            # stable id order to avoid deadlock between two cross-column moves.
+            lock_column_ids = sorted(
+                {str(source_column.pk), str(target_column.pk)}
+            )
+            list(
+                Card.objects.select_for_update()
+                .filter(column_id__in=lock_column_ids)
+                .order_by("pk")
+            )
+
             # Build the target lane's ordered card list excluding the moved card,
             # insert it at the requested position, then write 0..n-1.
             siblings = list(
