@@ -14,10 +14,11 @@
 | **โมดูล 1 — User Management & Auth** (CustomUser, RBAC, Department, AuditLog, JWT) | ✅ |
 | **โมดูล 2 — Helpdesk & Ticketing** (Ticket + SLA, Category, Comment, Attachment, Knowledge Base) | ✅ |
 | **โมดูล 3 — IT Asset Management** (Asset lifecycle, Category, Assignment history, Maintenance, warranty, QR lookup) | ✅ |
-| **โมดูล 4 — Inventory Management** (Spare parts + min-stock alert, Category, Stock movement ledger เบิก/รับ/ปรับ) | ✅ (backend) |
+| **โมดูล 4 — Inventory Management** (Spare parts + min-stock alert, Category, Stock movement ledger เบิก/รับ/ปรับ signed) | ✅ |
+| **โมดูล 5 — Daily Report & Checklist** (Template + Item, Run + Result pass/fail, daily summary รวม checklist + ticket) | ✅ (backend) |
 | LDAP / Active Directory (เปิดด้วย `LDAP_ENABLED=True`) | 🟡 เตรียมไว้ |
-| Frontend (React + Vite + Tailwind) — Login + Dashboard + User Management + Helpdesk + Asset | ✅ |
-| โมดูล 5–8 | ⬜ ยังไม่เริ่ม (มี placeholder บน Dashboard) |
+| Frontend (React + Vite + Tailwind) — Login + Dashboard + User Management + Helpdesk + Asset + Inventory | ✅ |
+| โมดูล 6–8 | ⬜ ยังไม่เริ่ม (มี placeholder บน Dashboard) |
 
 ## Stack
 
@@ -139,13 +140,25 @@ Ticket จะได้เลขอ้างอิงอัตโนมัติ 
 
 `quantity` เปลี่ยนผ่าน `move/` เท่านั้น (atomic + ล็อกแถว, กันสต็อกติดลบ) ทุกการเคลื่อนไหวบันทึกลง ledger พร้อม `quantity_after` · มี seed หมวดหมู่ด้วย `manage.py seed_inventory`
 
+## API หลัก (โมดูล 5 — Daily Report & Checklist)
+
+| Method | Path | สิทธิ์ |
+| :--- | :--- | :--- |
+| GET | `/api/v1/dailyreport/templates/` | ผู้ใช้ที่ล็อกอิน (อ่าน) · แม่แบบ + รายการที่ต้องเช็ก |
+| GET/POST | `/api/v1/dailyreport/runs/` | อ่านทุกคน · IT Staff สร้างรอบเดินตรวจ |
+| POST | `/api/v1/dailyreport/runs/{id}/submit/` | IT Staff — ส่งผลทั้งรอบ (pass/fail/reading) + ปิดเป็น completed |
+| GET | `/api/v1/dailyreport/runs/daily_summary/?date=YYYY-MM-DD` | สรุปรายวัน: รวมผล checklist + ยอด ticket จาก Helpdesk |
+| GET | `/api/v1/dailyreport/results/` | ผลแต่ละรายการ (read-only) |
+
+`submit/` เป็น atomic + ตรวจว่า item อยู่ใน template ของรอบนั้นและไม่ซ้ำ (re-submit แทนที่ผลเดิม) · `daily_summary` ดึงยอด ticket วันเดียวกันจากโมดูล 2 มารวม · มี seed แม่แบบ "Server Room Daily Check" ด้วย `manage.py seed_dailyreport`
+
 ## ทดสอบ
 
 ```bash
 docker compose exec backend python manage.py test --settings=config.settings.test
 ```
 
-ชุดทดสอบครอบคลุม: JWT login, การ audit เมื่อ login สำเร็จ/ล้มเหลว, RBAC (Admin vs General User), `/me`, ความ immutable ของ AuditLog, flow ของ Helpdesk (สร้าง ticket + ออกเลขอ้างอิง/SLA, RBAC การมองเห็นเคส, การ assign/resolve) Asset (RBAC, วงจรชีวิต assign/return + ประวัติ, QR lookup) และ Inventory (RBAC, เบิก/รับ/ปรับ + sync quantity, กันสต็อกติดลบ, low-stock) — รวม 54 เทสต์
+ชุดทดสอบครอบคลุม: JWT login, การ audit เมื่อ login สำเร็จ/ล้มเหลว, RBAC (Admin vs General User), `/me`, ความ immutable ของ AuditLog, flow ของ Helpdesk (สร้าง ticket + ออกเลขอ้างอิง/SLA, RBAC การมองเห็นเคส, การ assign/resolve) Asset (RBAC, วงจรชีวิต assign/return + ประวัติ, QR lookup) Inventory (RBAC, เบิก/รับ/ปรับ + sync quantity, กันสต็อกติดลบ, low-stock) และ Daily Report (RBAC, submit run + validation, daily summary รวม checklist + ticket) — รวม 68 เทสต์
 
 ## เปิดใช้ LDAP / Active Directory (ภายหลัง)
 
@@ -162,4 +175,4 @@ LDAP_USER_SEARCH_BASE=...
 
 ## โรดแมปถัดไป (จาก cloude.md)
 
-โมดูล 5 Daily Report · 6 Project (Kanban) · 7 IPAM · 8 Monitoring integration
+โมดูล 6 Project (Kanban) · 7 IPAM · 8 Monitoring integration
