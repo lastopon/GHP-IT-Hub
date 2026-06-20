@@ -92,11 +92,60 @@ class InventoryTests(APITestCase):
     def test_move_quantity_must_be_positive(self):
         item = self._item(quantity=5)
         self.client.force_authenticate(self.staff)
+        for kind in ("receive", "issue"):
+            res = self.client.post(
+                reverse("inventoryitem-move", args=[item.id]),
+                {"kind": kind, "quantity": 0},
+            )
+            self.assertEqual(
+                res.status_code, status.HTTP_400_BAD_REQUEST, f"{kind} qty=0"
+            )
+
+    # ---- Signed adjust (stock-take corrections) ----
+    def test_adjust_up_increases_quantity(self):
+        item = self._item(quantity=10)
+        self.client.force_authenticate(self.staff)
         res = self.client.post(
             reverse("inventoryitem-move", args=[item.id]),
-            {"kind": "receive", "quantity": 0},
+            {"kind": "adjust", "quantity": 3},
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+        self.assertEqual(res.data["quantity"], 13)
+        mv = StockMovement.objects.filter(item=item).first()
+        self.assertEqual(mv.quantity_delta, 3)
+
+    def test_adjust_down_decreases_quantity(self):
+        item = self._item(quantity=10)
+        self.client.force_authenticate(self.staff)
+        res = self.client.post(
+            reverse("inventoryitem-move", args=[item.id]),
+            {"kind": "adjust", "quantity": -4},
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+        self.assertEqual(res.data["quantity"], 6)
+        mv = StockMovement.objects.filter(item=item).first()
+        self.assertEqual(mv.quantity_delta, -4)
+
+    def test_adjust_zero_is_rejected(self):
+        item = self._item(quantity=10)
+        self.client.force_authenticate(self.staff)
+        res = self.client.post(
+            reverse("inventoryitem-move", args=[item.id]),
+            {"kind": "adjust", "quantity": 0},
         )
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_adjust_down_cannot_go_negative(self):
+        item = self._item(quantity=3)
+        self.client.force_authenticate(self.staff)
+        res = self.client.post(
+            reverse("inventoryitem-move", args=[item.id]),
+            {"kind": "adjust", "quantity": -5},
+        )
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        item.refresh_from_db()
+        self.assertEqual(item.quantity, 3)  # unchanged
+        self.assertFalse(StockMovement.objects.filter(item=item).exists())
 
     def test_move_unknown_item_404(self):
         self.client.force_authenticate(self.staff)

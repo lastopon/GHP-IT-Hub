@@ -93,8 +93,14 @@ class InventoryItemViewSet(viewsets.ModelViewSet):
         serializer = StockMoveSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         kind = serializer.validated_data["kind"]
-        magnitude = serializer.validated_data["quantity"]
-        delta = -magnitude if kind == StockMovement.Kind.ISSUE else magnitude
+        qty = serializer.validated_data["quantity"]
+        # receive: +qty, issue: -qty, adjust: signed qty as given.
+        if kind == StockMovement.Kind.ISSUE:
+            delta = -qty
+        elif kind == StockMovement.Kind.ADJUST:
+            delta = qty
+        else:  # receive
+            delta = qty
 
         # Resolve via the viewset (404 + permission/queryset scoping) first,
         # then re-fetch under a row lock inside the transaction.
@@ -105,7 +111,12 @@ class InventoryItemViewSet(viewsets.ModelViewSet):
             new_qty = item.quantity + delta
             if new_qty < 0:
                 raise ValidationError(
-                    {"quantity": f"Only {item.quantity} in stock; cannot issue {magnitude}."}
+                    {
+                        "quantity": (
+                            f"Only {item.quantity} in stock; this move would "
+                            f"leave {new_qty}."
+                        )
+                    }
                 )
             item.quantity = new_qty
             item.save(update_fields=["quantity", "updated_at"])
