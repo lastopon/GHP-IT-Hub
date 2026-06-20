@@ -201,3 +201,40 @@ export async function addMaintenanceRecord(payload) {
   const { data } = await api.post("/assets/maintenance/", payload);
   return data;
 }
+
+// ---- Inventory (module 4) ----
+export async function listInventoryItems(params = {}) {
+  const { data } = await api.get("/inventory/items/", { params });
+  return data; // { count, next, previous, results }
+}
+
+export async function getInventoryItem(id) {
+  const { data } = await api.get(`/inventory/items/${id}/`);
+  return data;
+}
+
+export async function createInventoryItem(payload) {
+  const { data } = await api.post("/inventory/items/", payload);
+  return data;
+}
+
+export async function updateInventoryItem(id, payload) {
+  const { data } = await api.patch(`/inventory/items/${id}/`, payload);
+  return data;
+}
+
+export async function moveStock(id, payload) {
+  // payload: { kind: receive|issue|adjust, quantity, note?, counterparty? }
+  const { data } = await api.post(`/inventory/items/${id}/move/`, payload);
+  return data;
+}
+
+export async function listLowStock(params = {}) {
+  const { data } = await api.get("/inventory/items/low_stock/", { params });
+  return data;
+}
+
+export async function listInventoryCategories() {
+  const { data } = await api.get("/inventory/categories/");
+  return data;
+}
