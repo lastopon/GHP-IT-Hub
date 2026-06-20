@@ -189,9 +189,11 @@ export async function listAssetCategories() {
   return data;
 }
 
-export async function listAssetHolders() {
-  // Staff-scoped list of users an asset can be assigned to.
-  const { data } = await api.get("/assets/items/holders/");
+export async function listAssetHolders(search = "") {
+  // Staff-scoped, search-filtered, capped list of assignable users.
+  const { data } = await api.get("/assets/items/holders/", {
+    params: search ? { search } : {},
+  });
   return data; // array of {id, email, role, ...}
 }
 

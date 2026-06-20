@@ -110,6 +110,20 @@ class AssetTests(APITestCase):
         )
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
 
+    def test_scrapping_assigned_asset_clears_holder(self):
+        asset = self._make_asset()
+        self.client.force_authenticate(self.staff)
+        self.client.post(reverse("asset-assign", args=[asset.id]), {"holder": str(self.user.id)})
+        # Move to scrapped via a plain edit while still assigned.
+        res = self.client.patch(
+            reverse("asset-detail", args=[asset.id]), {"status": Asset.Status.SCRAPPED}
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+        asset.refresh_from_db()
+        self.assertIsNone(asset.assigned_to_id)
+        # The open assignment was closed.
+        self.assertEqual(asset.assignments.filter(returned_at__isnull=True).count(), 0)
+
     def test_cannot_assign_scrapped_asset(self):
         asset = self._make_asset(status=Asset.Status.SCRAPPED)
         self.client.force_authenticate(self.staff)
@@ -157,3 +171,11 @@ class AssetTests(APITestCase):
         self.client.force_authenticate(self.user)
         res = self.client.get(reverse("asset-holders"))
         self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_holders_search_filters_results(self):
+        User.objects.create_user(email="alice@ghp.local", password="Pass@1234")
+        self.client.force_authenticate(self.staff)
+        res = self.client.get(reverse("asset-holders"), {"search": "alice"})
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        emails = {row["email"] for row in res.data}
+        self.assertEqual(emails, {"alice@ghp.local"})

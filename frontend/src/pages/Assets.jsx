@@ -409,10 +409,9 @@ function AssetFormModal({ asset, categories, onClose, onSaved }) {
 
 function AssetDetail({ id, isStaff, onClose, onEdit, onChanged }) {
   const [asset, setAsset] = useState(null);
-  const [holders, setHolders] = useState([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [maint, setMaint] = useState({ open: false, summary: "", detail: "", vendor: "" });
+  const [maint, setMaint] = useState({ open: false, summary: "", vendor: "" });
 
   async function refresh() {
     setError("");
@@ -425,11 +424,6 @@ function AssetDetail({ id, isStaff, onClose, onEdit, onChanged }) {
 
   useEffect(() => {
     refresh();
-    if (isStaff) {
-      listAssetHolders()
-        .then(setHolders)
-        .catch(() => setHolders([]));
-    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
@@ -498,32 +492,17 @@ function AssetDetail({ id, isStaff, onClose, onEdit, onChanged }) {
       )}
 
       {isStaff && asset.status !== "scrapped" && (
-        <div className="mt-4 flex flex-wrap items-end gap-3">
-          <label className="block">
-            <span className="mb-1 block text-xs font-medium text-slate-500">
-              มอบหมายให้
-            </span>
-            <select
-              disabled={busy}
-              value={asset.assigned_to || ""}
-              onChange={(e) =>
-                e.target.value && run(() => assignAsset(id, e.target.value))
-              }
-              className="input max-w-[240px]"
-            >
-              <option value="">— เลือกผู้ครอบครอง —</option>
-              {holders.map((h) => (
-                <option key={h.id} value={h.id}>
-                  {h.email}
-                </option>
-              ))}
-            </select>
-          </label>
+        <div className="mt-4">
+          <HolderPicker
+            busy={busy}
+            currentHolderId={asset.assigned_to}
+            onAssign={(holderId) => run(() => assignAsset(id, holderId))}
+          />
           {asset.assigned_to && (
             <button
               disabled={busy}
               onClick={() => run(() => returnAsset(id))}
-              className="rounded-lg bg-slate-600 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-700 disabled:opacity-60"
+              className="mt-2 rounded-lg bg-slate-600 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-700 disabled:opacity-60"
             >
               รับคืน
             </button>
@@ -589,7 +568,7 @@ function AssetDetail({ id, isStaff, onClose, onEdit, onChanged }) {
                     summary: maint.summary,
                     vendor: maint.vendor,
                   });
-                  setMaint({ open: false, summary: "", detail: "", vendor: "" });
+                  setMaint({ open: false, summary: "", vendor: "" });
                 })
               }
               className="rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-60"
@@ -600,6 +579,64 @@ function AssetDetail({ id, isStaff, onClose, onEdit, onChanged }) {
         )}
       </div>
     </Modal>
+  );
+}
+
+// Searchable, capped holder picker. Assigning is an explicit button click
+// (not a select onChange), so re-assigning to the current holder works and
+// the list never renders the whole user table.
+function HolderPicker({ busy, currentHolderId, onAssign }) {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    const handle = setTimeout(() => {
+      listAssetHolders(query)
+        .then((r) => active && setResults(r))
+        .catch(() => active && setResults([]))
+        .finally(() => active && setLoading(false));
+    }, 250); // debounce typing
+    return () => {
+      active = false;
+      clearTimeout(handle);
+    };
+  }, [query]);
+
+  return (
+    <div>
+      <span className="mb-1 block text-xs font-medium text-slate-500">มอบหมายให้</span>
+      <input
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        className="input max-w-[280px]"
+        placeholder="ค้นหาด้วยอีเมล / ชื่อ…"
+      />
+      <div className="mt-1 max-h-40 max-w-[280px] divide-y divide-slate-50 overflow-y-auto rounded-lg border border-slate-200">
+        {loading ? (
+          <p className="px-3 py-2 text-xs text-slate-400">กำลังค้นหา…</p>
+        ) : results.length === 0 ? (
+          <p className="px-3 py-2 text-xs text-slate-400">ไม่พบผู้ใช้</p>
+        ) : (
+          results.map((h) => (
+            <button
+              key={h.id}
+              type="button"
+              disabled={busy}
+              onClick={() => onAssign(h.id)}
+              className="flex w-full items-center justify-between px-3 py-1.5 text-left text-sm hover:bg-brand-50 disabled:opacity-60"
+            >
+              <span className="truncate">{h.email}</span>
+              {h.id === currentHolderId && (
+                <span className="ml-2 text-xs text-green-600">ปัจจุบัน</span>
+              )}
+            </button>
+          ))
+        )}
+      </div>
+    </div>
   );
 }
 

@@ -2,6 +2,7 @@
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 from rest_framework import viewsets
 from rest_framework.decorators import action
@@ -71,6 +72,20 @@ class AssetViewSet(viewsets.ModelViewSet):
         asset = serializer.save()
         self._audit(AuditLog.Action.CREATE, asset)
 
+    def perform_update(self, serializer):
+        # Keep the lifecycle consistent: a scrapped asset has no holder, so
+        # close any open assignment and clear assigned_to even if status was
+        # changed via a plain edit rather than the return action.
+        with transaction.atomic():
+            asset = serializer.save()
+            if asset.status == Asset.Status.SCRAPPED and asset.assigned_to_id:
+                asset.assignments.filter(returned_at__isnull=True).update(
+                    returned_at=timezone.now()
+                )
+                asset.assigned_to = None
+                asset.save(update_fields=["assigned_to", "updated_at"])
+        self._audit(AuditLog.Action.UPDATE, asset)
+
     def _audit(self, action_type, asset):
         AuditLog.objects.create(
             actor=self.request.user,
@@ -90,14 +105,28 @@ class AssetViewSet(viewsets.ModelViewSet):
             raise NotFound("No asset with that tag.")
         return Response(AssetDetailSerializer(asset).data)
 
+    # Cap the holder picker so it stays usable in a large org; the frontend
+    # narrows the list with ?search= rather than loading every user.
+    HOLDERS_LIMIT = 50
+
     @action(detail=False, methods=["get"], permission_classes=[IsAuthenticated, IsITStaff])
     def holders(self, request):
         """Active users an asset can be assigned to (the holder picker).
 
         Any user can hold an asset, so this is scoped to the asset module
-        rather than the admin-only user-management endpoint.
+        rather than the admin-only user-management endpoint. Optional
+        ``?search=`` filters by email / first / last name; results are capped
+        at ``HOLDERS_LIMIT`` so the response stays bounded.
         """
-        qs = User.objects.filter(is_active=True).order_by("email")
+        qs = User.objects.filter(is_active=True)
+        search = request.query_params.get("search", "").strip()
+        if search:
+            qs = qs.filter(
+                Q(email__icontains=search)
+                | Q(first_name__icontains=search)
+                | Q(last_name__icontains=search)
+            )
+        qs = qs.order_by("email")[: self.HOLDERS_LIMIT]
         data = [
             {
                 "id": str(u.id),
