@@ -18,7 +18,7 @@ const PAGE_SIZE = 100;
 const MOVE_KINDS = [
   { value: "receive", label: "รับเข้า (+)" },
   { value: "issue", label: "เบิกออก (−)" },
-  { value: "adjust", label: "ปรับยอด (+)" },
+  { value: "adjust", label: "ปรับยอด (±)" },
 ];
 
 const KIND_BADGE = {
@@ -342,7 +342,12 @@ function ItemDetail({ id, isStaff, onClose, onEdit, onChanged }) {
   const [item, setItem] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [move, setMove] = useState({ kind: "receive", quantity: "", counterparty: "" });
+  const [move, setMove] = useState({
+    kind: "receive",
+    quantity: "",
+    counterparty: "",
+    direction: "up", // only used for adjust; default to raising stock
+  });
 
   async function refresh() {
     setError("");
@@ -359,20 +364,24 @@ function ItemDetail({ id, isStaff, onClose, onEdit, onChanged }) {
   }, [id]);
 
   async function submitMove() {
-    const qty = Number(move.quantity);
-    if (!qty || qty < 1) {
+    const magnitude = Number(move.quantity);
+    if (!magnitude || magnitude < 1) {
       setError("จำนวนต้องมากกว่า 0");
       return;
     }
+    // receive/issue send a positive magnitude (backend derives the sign from
+    // kind); adjust sends a signed delta per the chosen direction.
+    const quantity =
+      move.kind === "adjust" && move.direction === "down" ? -magnitude : magnitude;
     setBusy(true);
     setError("");
     try {
       await moveStock(id, {
         kind: move.kind,
-        quantity: qty,
+        quantity,
         counterparty: move.counterparty,
       });
-      setMove({ kind: "receive", quantity: "", counterparty: "" });
+      setMove({ kind: "receive", quantity: "", counterparty: "", direction: "up" });
       await refresh();
       onChanged();
     } catch (err) {
@@ -438,6 +447,19 @@ function ItemDetail({ id, isStaff, onClose, onEdit, onChanged }) {
               ))}
             </select>
           </label>
+          {move.kind === "adjust" && (
+            <label className="block">
+              <span className="mb-1 block text-xs font-medium text-slate-500">ทิศทาง</span>
+              <select
+                value={move.direction}
+                onChange={(e) => setMove((m) => ({ ...m, direction: e.target.value }))}
+                className="input max-w-[120px]"
+              >
+                <option value="up">เพิ่ม (+)</option>
+                <option value="down">ลด (−)</option>
+              </select>
+            </label>
+          )}
           <label className="block">
             <span className="mb-1 block text-xs font-medium text-slate-500">จำนวน</span>
             <input

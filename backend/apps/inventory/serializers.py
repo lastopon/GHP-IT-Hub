@@ -69,9 +69,26 @@ class StockMoveSerializer(serializers.Serializer):
     """Input for the item ``move`` action (received / issued / adjusted)."""
 
     kind = serializers.ChoiceField(choices=StockMovement.Kind.choices)
-    # Magnitude of the change; the sign is derived from kind.
-    quantity = serializers.IntegerField(min_value=1)
+    # For receive/issue this is a positive magnitude (sign derived from kind).
+    # For adjust it is a signed delta: positive raises stock, negative lowers
+    # it (stock-take correction). Validated per-kind in validate().
+    quantity = serializers.IntegerField()
     note = serializers.CharField(max_length=255, required=False, allow_blank=True)
     counterparty = serializers.CharField(
         max_length=200, required=False, allow_blank=True
     )
+
+    def validate(self, attrs):
+        kind = attrs["kind"]
+        qty = attrs["quantity"]
+        if kind == StockMovement.Kind.ADJUST:
+            if qty == 0:
+                raise serializers.ValidationError(
+                    {"quantity": "Adjustment cannot be zero."}
+                )
+        elif qty < 1:
+            # receive / issue take a positive magnitude; the sign comes from kind.
+            raise serializers.ValidationError(
+                {"quantity": "Quantity must be at least 1."}
+            )
+        return attrs
