@@ -15,10 +15,11 @@
 | **โมดูล 2 — Helpdesk & Ticketing** (Ticket + SLA, Category, Comment, Attachment, Knowledge Base) | ✅ |
 | **โมดูล 3 — IT Asset Management** (Asset lifecycle, Category, Assignment history, Maintenance, warranty, QR lookup) | ✅ |
 | **โมดูล 4 — Inventory Management** (Spare parts + min-stock alert, Category, Stock movement ledger เบิก/รับ/ปรับ signed) | ✅ |
-| **โมดูล 5 — Daily Report & Checklist** (Template + Item, Run + Result pass/fail, daily summary รวม checklist + ticket) | ✅ (backend) |
+| **โมดูล 5 — Daily Report & Checklist** (Template + Item, Run + Result pass/fail, daily summary รวม checklist + ticket) | ✅ |
+| **โมดูล 6 — Project Management / Kanban** (Project + timeline, Board column, Card + assignee/priority, ย้าย card + จัดลำดับ) | ✅ (backend) |
 | LDAP / Active Directory (เปิดด้วย `LDAP_ENABLED=True`) | 🟡 เตรียมไว้ |
-| Frontend (React + Vite + Tailwind) — Login + Dashboard + User Management + Helpdesk + Asset + Inventory | ✅ |
-| โมดูล 6–8 | ⬜ ยังไม่เริ่ม (มี placeholder บน Dashboard) |
+| Frontend (React + Vite + Tailwind) — Login + Dashboard + User Management + Helpdesk + Asset + Inventory + Daily Report | ✅ |
+| โมดูล 7–8 | ⬜ ยังไม่เริ่ม (มี placeholder บน Dashboard) |
 
 ## Stack
 
@@ -152,13 +153,26 @@ Ticket จะได้เลขอ้างอิงอัตโนมัติ 
 
 `submit/` เป็น atomic + ตรวจว่า item อยู่ใน template ของรอบนั้นและไม่ซ้ำ (re-submit แทนที่ผลเดิม) · `daily_summary` ดึงยอด ticket วันเดียวกันจากโมดูล 2 มารวม · มี seed แม่แบบ "Server Room Daily Check" ด้วย `manage.py seed_dailyreport`
 
+## API หลัก (โมดูล 6 — Project Management / Kanban)
+
+| Method | Path | สิทธิ์ |
+| :--- | :--- | :--- |
+| GET | `/api/v1/projects/items/` | ผู้ใช้ที่ล็อกอิน (อ่าน) |
+| POST/PATCH | `/api/v1/projects/items/` | IT Staff — จัดการโครงการ |
+| GET | `/api/v1/projects/items/{id}/board/` | บอร์ด Kanban เต็ม (columns → cards เรียงลำดับ) |
+| GET/POST | `/api/v1/projects/columns/` | IT Staff — จัดการคอลัมน์ |
+| GET/POST | `/api/v1/projects/cards/` | IT Staff — สร้างการ์ด (ต่อท้ายคอลัมน์อัตโนมัติ) |
+| POST | `/api/v1/projects/cards/{id}/move/` | IT Staff — ย้ายการ์ด (`column?`, `position`) + จัดลำดับใหม่ทั้งสองเลน |
+
+`move/` เป็น atomic — ตรวจว่าคอลัมน์ปลายทางอยู่ในโครงการเดียวกัน, clamp position, แล้วเขียน order ใหม่ 0..n-1 พร้อมปิดช่องว่างในเลนต้นทาง · มี seed โครงการตัวอย่าง "Network Upgrade 2026" ด้วย `manage.py seed_projects`
+
 ## ทดสอบ
 
 ```bash
 docker compose exec backend python manage.py test --settings=config.settings.test
 ```
 
-ชุดทดสอบครอบคลุม: JWT login, การ audit เมื่อ login สำเร็จ/ล้มเหลว, RBAC (Admin vs General User), `/me`, ความ immutable ของ AuditLog, flow ของ Helpdesk (สร้าง ticket + ออกเลขอ้างอิง/SLA, RBAC การมองเห็นเคส, การ assign/resolve) Asset (RBAC, วงจรชีวิต assign/return + ประวัติ, QR lookup) Inventory (RBAC, เบิก/รับ/ปรับ + sync quantity, กันสต็อกติดลบ, low-stock) และ Daily Report (RBAC, submit run + validation, daily summary รวม checklist + ticket) — รวม 68 เทสต์
+ชุดทดสอบครอบคลุม: JWT login, การ audit เมื่อ login สำเร็จ/ล้มเหลว, RBAC (Admin vs General User), `/me`, ความ immutable ของ AuditLog, flow ของ Helpdesk (สร้าง ticket + ออกเลขอ้างอิง/SLA, RBAC การมองเห็นเคส, การ assign/resolve) Asset (RBAC, วงจรชีวิต assign/return + ประวัติ, QR lookup) Inventory (RBAC, เบิก/รับ/ปรับ + sync quantity, กันสต็อกติดลบ, low-stock) Daily Report (RBAC, submit run + validation, daily summary รวม checklist + ticket) และ Projects/Kanban (RBAC, ย้าย card ในเลน/ข้ามเลน + จัดลำดับ, กันข้ามโครงการ) — รวม 77 เทสต์
 
 ## เปิดใช้ LDAP / Active Directory (ภายหลัง)
 
@@ -175,4 +189,4 @@ LDAP_USER_SEARCH_BASE=...
 
 ## โรดแมปถัดไป (จาก cloude.md)
 
-โมดูล 6 Project (Kanban) · 7 IPAM · 8 Monitoring integration
+โมดูล 7 IPAM · 8 Monitoring integration
