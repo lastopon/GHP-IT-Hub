@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **GHP IT Hub** — an on-premise, API-first IT management platform (Django REST backend + React frontend). The architecture source of truth is [cloude.md](cloude.md) (Thai); [README.md](README.md) tracks current status and run instructions. Documentation is written in mixed Thai/English — preserve that style when editing docs.
 
-Current state: **module 1 (User Management & Auth)** and **module 2 (Helpdesk & Ticketing)** are implemented. Modules 3–8 from [cloude.md](cloude.md) §2 (Asset, Inventory, Daily Report, Project/Kanban, IPAM, Monitoring) are not yet built. When adding a module, follow the existing `apps/authentication` or `apps/helpdesk` app as the template: subclass `apps.core.BaseModel` for domain models, reuse the auth RBAC permission classes, register the app in `LOCAL_APPS` ([backend/config/settings/base.py](backend/config/settings/base.py)), and mount its `urls` under `/api/v1/<module>/` in [backend/config/urls.py](backend/config/urls.py).
+Current state: **module 1 (User Management & Auth)**, **module 2 (Helpdesk & Ticketing)**, and **module 3 (IT Asset Management, backend only)** are implemented. Modules 4–8 from [cloude.md](cloude.md) §2 (Inventory, Daily Report, Project/Kanban, IPAM, Monitoring) are not yet built. When adding a module, follow the existing `apps/authentication`, `apps/helpdesk`, or `apps/assets` app as the template: subclass `apps.core.BaseModel` for domain models, reuse the auth RBAC permission classes, register the app in `LOCAL_APPS` ([backend/config/settings/base.py](backend/config/settings/base.py)), and mount its `urls` under `/api/v1/<module>/` in [backend/config/urls.py](backend/config/urls.py).
 
 ## Commands
 

@@ -13,9 +13,10 @@
 | Core app (BaseModel UUID + soft-delete, ActiveManager, pagination, `wait_for_db`) | ✅ |
 | **โมดูล 1 — User Management & Auth** (CustomUser, RBAC, Department, AuditLog, JWT) | ✅ |
 | **โมดูล 2 — Helpdesk & Ticketing** (Ticket + SLA, Category, Comment, Attachment, Knowledge Base) | ✅ |
+| **โมดูล 3 — IT Asset Management** (Asset lifecycle, Category, Assignment history, Maintenance, warranty, QR lookup) | ✅ (backend) |
 | LDAP / Active Directory (เปิดด้วย `LDAP_ENABLED=True`) | 🟡 เตรียมไว้ |
-| Frontend (React + Vite + Tailwind) — Login + Dashboard | ✅ |
-| โมดูล 3–8 | ⬜ ยังไม่เริ่ม (มี placeholder บน Dashboard) |
+| Frontend (React + Vite + Tailwind) — Login + Dashboard + User Management + Helpdesk | ✅ |
+| โมดูล 4–8 | ⬜ ยังไม่เริ่ม (มี placeholder บน Dashboard) |
 
 ## Stack
 
@@ -109,13 +110,28 @@ npm run dev          # http://localhost:5173 (proxy /api -> :8000)
 
 Ticket จะได้เลขอ้างอิงอัตโนมัติ (`TKT-000001`) และคำนวณ `sla_due_at` จาก `default_sla_hours` ของหมวดหมู่
 
+## API หลัก (โมดูล 3 — IT Asset Management)
+
+| Method | Path | สิทธิ์ |
+| :--- | :--- | :--- |
+| GET | `/api/v1/assets/items/` | ผู้ใช้ที่ล็อกอิน (อ่าน) |
+| POST/PATCH | `/api/v1/assets/items/` | IT Staff — จัดการสินทรัพย์ |
+| GET | `/api/v1/assets/items/lookup/?tag=<asset_tag>` | สแกน QR/บาร์โค้ด — คืนสเปค + ผู้ครอบครอง + ประวัติ |
+| POST | `/api/v1/assets/items/{id}/assign/` | IT Staff — มอบหมายให้ผู้ครอบครอง (เปิด assignment + status → in_use) |
+| POST | `/api/v1/assets/items/{id}/return/` | IT Staff — รับคืน (ปิด assignment + status → in_store) |
+| GET | `/api/v1/assets/assignments/` | ประวัติการมอบหมาย (read-only) |
+| GET/POST | `/api/v1/assets/maintenance/` | ประวัติการซ่อม — IT Staff จัดการ |
+| GET | `/api/v1/assets/categories/` | ผู้ใช้ที่ล็อกอิน (อ่าน), Admin (เขียน) |
+
+วงจรชีวิต: `procured → in_use → in_store → in_repair → scrapped` · `assigned_to` สะท้อน assignment ที่ยังเปิดอยู่ · มี seed หมวดหมู่ด้วย `manage.py seed_assets`
+
 ## ทดสอบ
 
 ```bash
 docker compose exec backend python manage.py test --settings=config.settings.test
 ```
 
-ชุดทดสอบครอบคลุม: JWT login, การ audit เมื่อ login สำเร็จ/ล้มเหลว, RBAC (Admin vs General User), `/me`, ความ immutable ของ AuditLog และ flow ของ Helpdesk (สร้าง ticket + ออกเลขอ้างอิง/SLA, RBAC การมองเห็นเคส, การ assign/resolve)
+ชุดทดสอบครอบคลุม: JWT login, การ audit เมื่อ login สำเร็จ/ล้มเหลว, RBAC (Admin vs General User), `/me`, ความ immutable ของ AuditLog, flow ของ Helpdesk (สร้าง ticket + ออกเลขอ้างอิง/SLA, RBAC การมองเห็นเคส, การ assign/resolve) และ Asset (RBAC, วงจรชีวิต assign/return + ประวัติ, QR lookup) — รวม 39 เทสต์
 
 ## เปิดใช้ LDAP / Active Directory (ภายหลัง)
 
@@ -132,4 +148,4 @@ LDAP_USER_SEARCH_BASE=...
 
 ## โรดแมปถัดไป (จาก cloude.md)
 
-โมดูล 3 Asset · 4 Inventory · 5 Daily Report · 6 Project (Kanban) · 7 IPAM · 8 Monitoring integration
+โมดูล 4 Inventory · 5 Daily Report · 6 Project (Kanban) · 7 IPAM · 8 Monitoring integration
