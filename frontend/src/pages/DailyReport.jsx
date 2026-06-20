@@ -18,7 +18,10 @@ const STATUS_BADGE = {
 };
 
 function todayISO() {
-  return new Date().toISOString().slice(0, 10);
+  // Local calendar date (YYYY-MM-DD), NOT UTC — the backend stamps
+  // performed_on with timezone.localdate(), so toISOString() would be a day
+  // off during the early-morning hours when local time is ahead of UTC.
+  return new Intl.DateTimeFormat("en-CA").format(new Date());
 }
 
 export default function DailyReport() {
@@ -204,6 +207,7 @@ export default function DailyReport() {
         <RunDetail
           id={activeRunId}
           isStaff={isStaff}
+          templates={templates}
           onClose={() => setActiveRunId(null)}
           onChanged={load}
         />
@@ -272,15 +276,17 @@ function StartRunModal({ templates, onClose, onStarted }) {
   );
 }
 
-function RunDetail({ id, isStaff, onClose, onChanged }) {
+function RunDetail({ id, isStaff, templates, onClose, onChanged }) {
   const [run, setRun] = useState(null);
   const [items, setItems] = useState(null); // the run's template items
   const [answers, setAnswers] = useState({}); // itemId -> {passed, reading, note}
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
-  // Load the run, then its template's items (the run payload carries results
-  // but not the full item list), seeding answers from any existing results.
+  // Load the run (its payload carries results but not the full item list) and
+  // resolve the template's items from the list the parent already fetched,
+  // falling back to a fetch only if it isn't loaded yet. Seed answers from any
+  // existing results.
   useEffect(() => {
     let active = true;
     async function loadAll() {
@@ -294,9 +300,13 @@ function RunDetail({ id, isStaff, onClose, onChanged }) {
           seeded[r.item] = { passed: r.passed, reading: r.reading, note: r.note };
         }
         setAnswers(seeded);
-        const tpls = await listChecklistTemplates();
-        if (!active) return;
-        const tpl = (tpls.results ?? tpls).find((t) => t.id === data.template);
+
+        let tpl = (templates || []).find((t) => t.id === data.template);
+        if (!tpl) {
+          const tpls = await listChecklistTemplates();
+          if (!active) return;
+          tpl = (tpls.results ?? tpls).find((t) => t.id === data.template);
+        }
         setItems((tpl?.items || []).filter((i) => i.is_active));
       } catch {
         if (active) setError("โหลดรอบเดินตรวจไม่สำเร็จ");
@@ -306,6 +316,7 @@ function RunDetail({ id, isStaff, onClose, onChanged }) {
     return () => {
       active = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   function setAnswer(itemId, patch) {
