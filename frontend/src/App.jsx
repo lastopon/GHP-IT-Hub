@@ -7,6 +7,7 @@ import Helpdesk from "./pages/Helpdesk.jsx";
 import Assets from "./pages/Assets.jsx";
 import Inventory from "./pages/Inventory.jsx";
 import DailyReport from "./pages/DailyReport.jsx";
+import Projects from "./pages/Projects.jsx";
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
@@ -70,6 +71,14 @@ export default function App() {
         element={
           <ProtectedRoute>
             <DailyReport />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/projects"
+        element={
+          <ProtectedRoute>
+            <Projects />
           </ProtectedRoute>
         }
       />

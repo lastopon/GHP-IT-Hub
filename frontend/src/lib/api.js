@@ -272,3 +272,45 @@ export async function getDailySummary(date) {
   });
   return data;
 }
+
+// ---- Projects / Kanban (module 6) ----
+export async function listProjects(params = {}) {
+  const { data } = await api.get("/projects/items/", { params });
+  return data; // { count, next, previous, results }
+}
+
+export async function getProjectBoard(id) {
+  const { data } = await api.get(`/projects/items/${id}/board/`);
+  return data; // project + columns -> cards
+}
+
+export async function createProject(payload) {
+  const { data } = await api.post("/projects/items/", payload);
+  return data;
+}
+
+export async function updateProject(id, payload) {
+  const { data } = await api.patch(`/projects/items/${id}/`, payload);
+  return data;
+}
+
+export async function createBoardColumn(payload) {
+  const { data } = await api.post("/projects/columns/", payload);
+  return data;
+}
+
+export async function createCard(payload) {
+  const { data } = await api.post("/projects/cards/", payload);
+  return data;
+}
+
+export async function updateCard(id, payload) {
+  const { data } = await api.patch(`/projects/cards/${id}/`, payload);
+  return data;
+}
+
+export async function moveCard(id, payload) {
+  // payload: { column?, position }
+  const { data } = await api.post(`/projects/cards/${id}/move/`, payload);
+  return data;
+}
