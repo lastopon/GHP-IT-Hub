@@ -238,3 +238,37 @@ export async function listInventoryCategories() {
   const { data } = await api.get("/inventory/categories/");
   return data;
 }
+
+// ---- Daily Report & Checklist (module 5) ----
+export async function listChecklistTemplates() {
+  const { data } = await api.get("/dailyreport/templates/");
+  return data; // each template includes its `items`
+}
+
+export async function listChecklistRuns(params = {}) {
+  const { data } = await api.get("/dailyreport/runs/", { params });
+  return data; // { count, next, previous, results }
+}
+
+export async function getChecklistRun(id) {
+  const { data } = await api.get(`/dailyreport/runs/${id}/`);
+  return data;
+}
+
+export async function createChecklistRun(templateId) {
+  const { data } = await api.post("/dailyreport/runs/", { template: templateId });
+  return data;
+}
+
+export async function submitChecklistRun(id, payload) {
+  // payload: { results: [{ item, passed?, reading?, note? }], note? }
+  const { data } = await api.post(`/dailyreport/runs/${id}/submit/`, payload);
+  return data;
+}
+
+export async function getDailySummary(date) {
+  const { data } = await api.get("/dailyreport/runs/daily_summary/", {
+    params: date ? { date } : {},
+  });
+  return data;
+}
