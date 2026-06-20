@@ -4,6 +4,7 @@ import Login from "./pages/Login.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
 import UsersAdmin from "./pages/UsersAdmin.jsx";
 import Helpdesk from "./pages/Helpdesk.jsx";
+import Assets from "./pages/Assets.jsx";
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
@@ -43,6 +44,14 @@ export default function App() {
         element={
           <ProtectedRoute>
             <Helpdesk />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/assets"
+        element={
+          <ProtectedRoute>
+            <Assets />
           </ProtectedRoute>
         }
       />

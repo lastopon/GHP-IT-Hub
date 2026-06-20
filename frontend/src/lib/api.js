@@ -147,3 +147,55 @@ export async function addTicketComment(payload) {
   const { data } = await api.post("/helpdesk/comments/", payload);
   return data;
 }
+
+// ---- Assets (module 3) ----
+export async function listAssets(params = {}) {
+  const { data } = await api.get("/assets/items/", { params });
+  return data; // { count, next, previous, results }
+}
+
+export async function getAsset(id) {
+  const { data } = await api.get(`/assets/items/${id}/`);
+  return data;
+}
+
+export async function createAsset(payload) {
+  const { data } = await api.post("/assets/items/", payload);
+  return data;
+}
+
+export async function updateAsset(id, payload) {
+  const { data } = await api.patch(`/assets/items/${id}/`, payload);
+  return data;
+}
+
+export async function assignAsset(id, holder, note = "") {
+  const { data } = await api.post(`/assets/items/${id}/assign/`, { holder, note });
+  return data;
+}
+
+export async function returnAsset(id) {
+  const { data } = await api.post(`/assets/items/${id}/return/`);
+  return data;
+}
+
+export async function lookupAsset(tag) {
+  const { data } = await api.get("/assets/items/lookup/", { params: { tag } });
+  return data;
+}
+
+export async function listAssetCategories() {
+  const { data } = await api.get("/assets/categories/");
+  return data;
+}
+
+export async function listAssetHolders() {
+  // Staff-scoped list of users an asset can be assigned to.
+  const { data } = await api.get("/assets/items/holders/");
+  return data; // array of {id, email, role, ...}
+}
+
+export async function addMaintenanceRecord(payload) {
+  const { data } = await api.post("/assets/maintenance/", payload);
+  return data;
+}
