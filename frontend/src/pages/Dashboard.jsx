@@ -7,7 +7,7 @@ import { useAuth } from "../lib/auth.jsx";
 const MODULES = [
   { id: 1, name: "User Management", desc: "จัดการผู้ใช้ + สิทธิ์ RBAC", roles: ["admin"], ready: true, to: "/users" },
   { id: 2, name: "Helpdesk & Ticketing", desc: "แจ้งซ่อม / SLA / Knowledge Base", roles: ["admin", "staff", "user"], ready: true, to: "/helpdesk" },
-  { id: 3, name: "IT Asset Management", desc: "วงจรชีวิตสินทรัพย์ + QR Code", roles: ["admin", "staff"] },
+  { id: 3, name: "IT Asset Management", desc: "วงจรชีวิตสินทรัพย์ + QR Code", roles: ["admin", "staff", "user"], ready: true, to: "/assets" },
   { id: 4, name: "Inventory", desc: "คลังอะไหล่ + แจ้งเตือนสต็อกต่ำ", roles: ["admin", "staff"] },
   { id: 5, name: "Daily Report & Checklist", desc: "ตรวจเช็กประจำวัน + รายงานอัตโนมัติ", roles: ["admin", "staff"] },
   { id: 6, name: "Project Management", desc: "Kanban board สำหรับงานโครงการ", roles: ["admin", "staff"] },
