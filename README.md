@@ -13,10 +13,11 @@
 | Core app (BaseModel UUID + soft-delete, ActiveManager, pagination, `wait_for_db`) | ✅ |
 | **โมดูล 1 — User Management & Auth** (CustomUser, RBAC, Department, AuditLog, JWT) | ✅ |
 | **โมดูล 2 — Helpdesk & Ticketing** (Ticket + SLA, Category, Comment, Attachment, Knowledge Base) | ✅ |
-| **โมดูล 3 — IT Asset Management** (Asset lifecycle, Category, Assignment history, Maintenance, warranty, QR lookup) | ✅ (backend) |
+| **โมดูล 3 — IT Asset Management** (Asset lifecycle, Category, Assignment history, Maintenance, warranty, QR lookup) | ✅ |
+| **โมดูล 4 — Inventory Management** (Spare parts + min-stock alert, Category, Stock movement ledger เบิก/รับ/ปรับ) | ✅ (backend) |
 | LDAP / Active Directory (เปิดด้วย `LDAP_ENABLED=True`) | 🟡 เตรียมไว้ |
-| Frontend (React + Vite + Tailwind) — Login + Dashboard + User Management + Helpdesk | ✅ |
-| โมดูล 4–8 | ⬜ ยังไม่เริ่ม (มี placeholder บน Dashboard) |
+| Frontend (React + Vite + Tailwind) — Login + Dashboard + User Management + Helpdesk + Asset | ✅ |
+| โมดูล 5–8 | ⬜ ยังไม่เริ่ม (มี placeholder บน Dashboard) |
 
 ## Stack
 
@@ -125,13 +126,26 @@ Ticket จะได้เลขอ้างอิงอัตโนมัติ 
 
 วงจรชีวิต: `procured → in_use → in_store → in_repair → scrapped` · `assigned_to` สะท้อน assignment ที่ยังเปิดอยู่ · มี seed หมวดหมู่ด้วย `manage.py seed_assets`
 
+## API หลัก (โมดูล 4 — Inventory Management)
+
+| Method | Path | สิทธิ์ |
+| :--- | :--- | :--- |
+| GET | `/api/v1/inventory/items/` | ผู้ใช้ที่ล็อกอิน (อ่าน) |
+| POST/PATCH | `/api/v1/inventory/items/` | IT Staff — จัดการรายการอะไหล่ (`quantity` แก้ตรงไม่ได้) |
+| POST | `/api/v1/inventory/items/{id}/move/` | IT Staff — เบิก/รับเข้า/ปรับ (`kind` = issue/receive/adjust) |
+| GET | `/api/v1/inventory/items/low_stock/` | รายการที่ `quantity ≤ min_stock` |
+| GET | `/api/v1/inventory/movements/` | บันทึกการเคลื่อนไหวสต็อก (read-only) |
+| GET | `/api/v1/inventory/categories/` | ผู้ใช้ที่ล็อกอิน (อ่าน), Admin (เขียน) |
+
+`quantity` เปลี่ยนผ่าน `move/` เท่านั้น (atomic + ล็อกแถว, กันสต็อกติดลบ) ทุกการเคลื่อนไหวบันทึกลง ledger พร้อม `quantity_after` · มี seed หมวดหมู่ด้วย `manage.py seed_inventory`
+
 ## ทดสอบ
 
 ```bash
 docker compose exec backend python manage.py test --settings=config.settings.test
 ```
 
-ชุดทดสอบครอบคลุม: JWT login, การ audit เมื่อ login สำเร็จ/ล้มเหลว, RBAC (Admin vs General User), `/me`, ความ immutable ของ AuditLog, flow ของ Helpdesk (สร้าง ticket + ออกเลขอ้างอิง/SLA, RBAC การมองเห็นเคส, การ assign/resolve) และ Asset (RBAC, วงจรชีวิต assign/return + ประวัติ, QR lookup) — รวม 39 เทสต์
+ชุดทดสอบครอบคลุม: JWT login, การ audit เมื่อ login สำเร็จ/ล้มเหลว, RBAC (Admin vs General User), `/me`, ความ immutable ของ AuditLog, flow ของ Helpdesk (สร้าง ticket + ออกเลขอ้างอิง/SLA, RBAC การมองเห็นเคส, การ assign/resolve) Asset (RBAC, วงจรชีวิต assign/return + ประวัติ, QR lookup) และ Inventory (RBAC, เบิก/รับ/ปรับ + sync quantity, กันสต็อกติดลบ, low-stock) — รวม 54 เทสต์
 
 ## เปิดใช้ LDAP / Active Directory (ภายหลัง)
 
@@ -148,4 +162,4 @@ LDAP_USER_SEARCH_BASE=...
 
 ## โรดแมปถัดไป (จาก cloude.md)
 
-โมดูล 4 Inventory · 5 Daily Report · 6 Project (Kanban) · 7 IPAM · 8 Monitoring integration
+โมดูล 5 Daily Report · 6 Project (Kanban) · 7 IPAM · 8 Monitoring integration
