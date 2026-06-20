@@ -144,3 +144,16 @@ class AssetTests(APITestCase):
         self.client.force_authenticate(self.user)
         res = self.client.get(reverse("asset-lookup"))
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+
+    # ---- Holder picker ----
+    def test_staff_can_list_holders(self):
+        self.client.force_authenticate(self.staff)
+        res = self.client.get(reverse("asset-holders"))
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        emails = {row["email"] for row in res.data}
+        self.assertIn("user@ghp.local", emails)  # any active user can hold
+
+    def test_general_user_cannot_list_holders(self):
+        self.client.force_authenticate(self.user)
+        res = self.client.get(reverse("asset-holders"))
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)

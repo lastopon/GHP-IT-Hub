@@ -90,6 +90,26 @@ class AssetViewSet(viewsets.ModelViewSet):
             raise NotFound("No asset with that tag.")
         return Response(AssetDetailSerializer(asset).data)
 
+    @action(detail=False, methods=["get"], permission_classes=[IsAuthenticated, IsITStaff])
+    def holders(self, request):
+        """Active users an asset can be assigned to (the holder picker).
+
+        Any user can hold an asset, so this is scoped to the asset module
+        rather than the admin-only user-management endpoint.
+        """
+        qs = User.objects.filter(is_active=True).order_by("email")
+        data = [
+            {
+                "id": str(u.id),
+                "email": u.email,
+                "first_name": u.first_name,
+                "last_name": u.last_name,
+                "role": u.role,
+            }
+            for u in qs
+        ]
+        return Response(data)
+
     @action(detail=True, methods=["post"], permission_classes=[IsAuthenticated, IsITStaff])
     def assign(self, request, pk=None):
         """Hand the asset to a holder, opening a new assignment record."""
