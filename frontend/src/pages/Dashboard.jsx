@@ -10,7 +10,7 @@ const MODULES = [
   { id: 3, name: "IT Asset Management", desc: "วงจรชีวิตสินทรัพย์ + QR Code", roles: ["admin", "staff", "user"], ready: true, to: "/assets" },
   { id: 4, name: "Inventory", desc: "คลังอะไหล่ + แจ้งเตือนสต็อกต่ำ", roles: ["admin", "staff", "user"], ready: true, to: "/inventory" },
   { id: 5, name: "Daily Report & Checklist", desc: "ตรวจเช็กประจำวัน + รายงานอัตโนมัติ", roles: ["admin", "staff", "user"], ready: true, to: "/dailyreport" },
-  { id: 6, name: "Project Management", desc: "Kanban board สำหรับงานโครงการ", roles: ["admin", "staff"] },
+  { id: 6, name: "Project Management", desc: "Kanban board สำหรับงานโครงการ", roles: ["admin", "staff", "user"], ready: true, to: "/projects" },
   { id: 7, name: "IP & VLAN / IPAM", desc: "ทะเบียน IP/VLAN + เบิก IP ว่าง", roles: ["admin", "staff"] },
   { id: 8, name: "Monitoring Integration", desc: "เชื่อม Zabbix/PRTG + auto ticket", roles: ["admin", "staff"] },
 ];
